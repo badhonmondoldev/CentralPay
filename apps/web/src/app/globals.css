@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary selection:text-background;
+    background-color: #07090D;
+    color: #FFFFFF;
+  }
+}
+
+.glass-card {
+  background: rgba(16, 20, 27, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(26, 33, 45, 0.8);
+}
+
+.glass-card-interactive {
+  background: rgba(16, 20, 27, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(26, 33, 45, 0.8);
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-card-interactive:hover {
+  border-color: rgba(85, 181, 16, 0.4);
+  box-shadow: 0 0 15px rgba(85, 181, 16, 0.15);
+}
+
+.neon-glow-primary {
+  box-shadow: 0 0 20px rgba(85, 181, 16, 0.25);
+}
+
+.neon-glow-accent {
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.25);
+}
+
+/* Custom dark scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #07090D;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1A212D;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #55B510;
+}
