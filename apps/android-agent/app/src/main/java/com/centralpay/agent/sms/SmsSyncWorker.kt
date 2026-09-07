@@ -30,7 +30,8 @@ class SmsSyncWorker(
             return Result.success()
         }
 
-        val baseUrl = "http://10.0.2.2:3000"
+        // Live Vercel Production Server URL
+        val baseUrl = "https://centralpay-xi.vercel.app"
         val deviceId = KeystoreHelper.getDeviceId(applicationContext)
         val deviceSecret = KeystoreHelper.getDeviceSecret(applicationContext)
 

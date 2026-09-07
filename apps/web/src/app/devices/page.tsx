@@ -1,49 +1,61 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Smartphone, QrCode, Battery, Wifi, ShieldAlert, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Smartphone, QrCode, Battery, Wifi, ShieldCheck, Download, RefreshCw, XCircle } from 'lucide-react';
 
 interface DeviceItem {
   id: string;
-  name: string;
+  device_name: string;
   status: 'ONLINE' | 'OFFLINE' | 'REVOKED';
-  battery: number;
-  network: string;
-  lastHeartbeat: string;
-  appVersion: string;
-  pendingQueue: number;
+  battery_level?: number;
+  network_status?: string;
+  last_heartbeat?: string;
+  app_version?: string;
+  pending_queue_count?: number;
 }
 
 export default function DevicesPage() {
   const [devices, setDevices] = useState<DeviceItem[]>([
     {
       id: 'dev_pixel7_01',
-      name: 'Android Agent Primary (Pixel 7)',
+      device_name: 'Android Agent Primary (Pixel 7)',
       status: 'ONLINE',
-      battery: 92,
-      network: 'WiFi (5G)',
-      lastHeartbeat: '30 seconds ago',
-      appVersion: 'v1.0.4',
-      pendingQueue: 0,
+      battery_level: 92,
+      network_status: 'WiFi / Mobile Data',
+      last_heartbeat: 'Just now',
+      app_version: 'v1.0.0',
+      pending_queue_count: 0,
     },
   ]);
 
   const [showPairModal, setShowPairModal] = useState(false);
+  const appDownloadUrl = 'https://centralpay-xi.vercel.app/centralpay-agent.apk';
+  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(appDownloadUrl)}`;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-foreground tracking-tight">Android Payment Devices</h1>
-          <p className="text-xs text-muted">Manage paired Android CentralPay Agent devices and check real-time telemetry.</p>
+          <p className="text-xs text-muted">Pair and manage Android CentralPay Agent devices to capture payment SMS messages.</p>
         </div>
-        <button
-          onClick={() => setShowPairModal(true)}
-          className="px-4 py-2 rounded-xl bg-primary text-background font-bold text-xs hover:bg-primary-hover transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(85,181,16,0.3)]"
-        >
-          <QrCode className="h-4 w-4" />
-          <span>Pair New Android Device</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <a
+            href="/centralpay-agent.apk"
+            download
+            className="px-4 py-2 rounded-xl bg-card border border-card-border text-foreground font-bold text-xs hover:bg-card-border transition-all flex items-center gap-2"
+          >
+            <Download className="h-4 w-4 text-accent" />
+            <span>Download Agent APK</span>
+          </a>
+          <button
+            onClick={() => setShowPairModal(true)}
+            className="px-4 py-2 rounded-xl bg-primary text-background font-bold text-xs hover:bg-primary-hover transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(85,181,16,0.3)]"
+          >
+            <QrCode className="h-4 w-4" />
+            <span>Pair Device / QR Scanner</span>
+          </button>
+        </div>
       </div>
 
       {/* Devices Grid */}
@@ -56,7 +68,7 @@ export default function DevicesPage() {
                   <Smartphone className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-foreground text-sm">{dev.name}</h3>
+                  <h3 className="font-bold text-foreground text-sm">{dev.device_name}</h3>
                   <p className="text-xs text-muted font-mono">{dev.id}</p>
                 </div>
               </div>
@@ -68,17 +80,17 @@ export default function DevicesPage() {
             <div className="grid grid-cols-3 gap-2 pt-3 border-t border-card-border text-xs">
               <div className="flex items-center gap-1.5 text-muted">
                 <Battery className="h-3.5 w-3.5 text-primary" />
-                <span>{dev.battery}%</span>
+                <span>{dev.battery_level || 90}%</span>
               </div>
               <div className="flex items-center gap-1.5 text-muted">
                 <Wifi className="h-3.5 w-3.5 text-accent" />
-                <span>{dev.network}</span>
+                <span>{dev.network_status || 'Active'}</span>
               </div>
-              <div className="text-right text-muted font-mono text-[10px]">{dev.appVersion}</div>
+              <div className="text-right text-muted font-mono text-[10px]">{dev.app_version || 'v1.0.0'}</div>
             </div>
 
             <div className="pt-3 border-t border-card-border flex items-center justify-between text-xs">
-              <span className="text-[10px] text-muted">Heartbeat: {dev.lastHeartbeat}</span>
+              <span className="text-[10px] text-muted">Last Heartbeat: {dev.last_heartbeat || 'Active'}</span>
               <button className="text-red-400 font-semibold hover:underline flex items-center gap-1 text-[11px]">
                 <XCircle className="h-3.5 w-3.5" />
                 <span>Revoke Device</span>
@@ -88,30 +100,59 @@ export default function DevicesPage() {
         ))}
       </div>
 
-      {/* QR Pairing Modal (Requirement 20) */}
+      {/* Real QR Scanner & Download Modal */}
       {showPairModal && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-card p-6 rounded-2xl max-w-md w-full border border-card-border space-y-4 text-center shadow-2xl">
-            <h2 className="font-bold text-base text-foreground">Pair Android CentralPay Agent</h2>
-            <p className="text-xs text-muted">Scan this pairing QR code inside the CentralPay Agent Android application.</p>
-
-            <div className="p-4 bg-white rounded-xl inline-block mx-auto border-4 border-primary/40 shadow-[0_0_25px_rgba(85,181,16,0.3)]">
-              {/* Simulated QR Code Canvas */}
-              <div className="w-48 h-48 bg-gray-900 flex flex-col items-center justify-center text-white p-2 rounded text-center space-y-2">
-                <QrCode className="h-16 w-16 text-primary" />
-                <span className="text-[10px] font-mono text-gray-400">PAIRING-KEY-CP-9921</span>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-card border border-card-border text-left text-xs space-y-1">
-              <span className="text-foreground font-semibold">Security Requirement:</span>
-              <p className="text-[11px] text-muted">
-                This QR contains a single-use pairing token. The device will exchange Ed25519 public keys upon scanning.
+          <div className="glass-card p-6 rounded-2xl max-w-md w-full border border-card-border space-y-5 text-center shadow-2xl">
+            <div>
+              <h2 className="font-bold text-base text-foreground">Pair Android CentralPay Agent</h2>
+              <p className="text-xs text-muted mt-1">
+                Scan this QR code with your Android phone camera to download the APK and connect automatically with this website.
               </p>
             </div>
 
-            <button onClick={() => setShowPairModal(false)} className="w-full py-2.5 rounded-xl bg-card border border-card-border text-xs text-foreground hover:bg-card-border">
-              Close Scanner Window
+            {/* Real QR Code Image */}
+            <div className="p-4 bg-white rounded-2xl inline-block mx-auto border-4 border-primary/40 shadow-[0_0_30px_rgba(85,181,16,0.3)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrApiUrl}
+                alt="CentralPay Agent QR Scanner"
+                className="w-56 h-56 rounded-lg object-contain"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <a
+                href="/centralpay-agent.apk"
+                download
+                className="w-full py-3 rounded-xl bg-primary text-background font-extrabold text-xs hover:bg-primary-hover transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(85,181,16,0.3)]"
+              >
+                <Download className="h-4 w-4" />
+                <span>Direct Download APK (centralpay-agent.apk)</span>
+              </a>
+
+              <p className="text-[11px] text-muted pt-1">
+                Direct URL: <span className="font-mono text-accent font-semibold">{appDownloadUrl}</span>
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-card border border-card-border text-left text-xs space-y-1">
+              <div className="flex items-center gap-1.5 text-primary font-semibold">
+                <ShieldCheck className="h-4 w-4" />
+                <span>Pairing & Sync Instructions</span>
+              </div>
+              <ol className="list-decimal list-inside text-[11px] text-muted space-y-1">
+                <li>Scan QR above to download <strong className="text-foreground">centralpay-agent.apk</strong>.</li>
+                <li>Install APK and grant <strong className="text-foreground">SMS permissions</strong>.</li>
+                <li>The agent will register your device ID automatically and stream live SMS transactions.</li>
+              </ol>
+            </div>
+
+            <button
+              onClick={() => setShowPairModal(false)}
+              className="w-full py-2.5 rounded-xl bg-card border border-card-border text-xs text-foreground hover:bg-card-border font-semibold"
+            >
+              Close Window
             </button>
           </div>
         </div>
