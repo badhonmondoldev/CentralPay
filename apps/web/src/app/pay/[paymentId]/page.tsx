@@ -192,29 +192,33 @@ export default function CommercialHostedCheckoutPage() {
     setIsVerifying(true);
 
     try {
-      // Simulate/Trigger Verification API
-      const response = await fetch('/api/v1/test/simulate', {
+      // Call Real Verification API Endpoint
+      const response = await fetch('/api/v1/payments/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'simulate_sms',
-          sender: checkoutData?.paymentSources[selectedSourceIndex]?.provider || 'bKash',
-          message_body: `Tk ${checkoutData?.amount}.00 received from ${senderPhone}. TrxID ${trxId}.`,
           payment_id: paymentId,
+          sender_phone: senderPhone,
+          trx_id: trxId,
+          provider: checkoutData?.paymentSources[selectedSourceIndex]?.provider || 'bKash',
         }),
       });
 
       const resData = await response.json();
 
-      if (checkoutData) {
-        setCheckoutData({ ...checkoutData, status: 'COMPLETED' });
+      if (resData.success && resData.matched) {
+        if (checkoutData) {
+          setCheckoutData({ ...checkoutData, status: 'COMPLETED' });
+        }
+        setStep(4);
+      } else {
+        setVerifyError(
+          resData.message ||
+            `Verification failed: No matching SMS found for TrxID '${trxId}'. Please make sure you sent money and entered the exact TrxID.`
+        );
       }
-      setStep(4);
     } catch {
-      if (checkoutData) {
-        setCheckoutData({ ...checkoutData, status: 'COMPLETED' });
-      }
-      setStep(4);
+      setVerifyError('Network error while verifying payment. Please try again.');
     } finally {
       setIsVerifying(false);
     }
