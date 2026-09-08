@@ -6,17 +6,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const paymentId = params.id;
     const supabase = getAdminSupabase();
 
-    const { data: reqData, error: reqError } = await supabase
-      .from('payment_requests')
-      .select('*, apps(name, logo_url), payment_sources(*)')
-      .eq('id', paymentId)
-      .single();
-
-    if (reqError || !reqData) {
-      return NextResponse.json({ error: 'MATCH_NOT_FOUND', message: 'Payment request not found' }, { status: 404 });
-    }
-
-    // Fetch payment sources available for this app or global
+    // 1. Fetch payment sources available in the database
     const { data: sources } = await supabase
       .from('payment_sources')
       .select('*')
@@ -26,37 +16,79 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const formattedSources = (sources && sources.length > 0)
       ? sources.map((s) => ({
           id: s.id,
-          provider: s.provider_label,
+          provider: `${s.provider_label} Personal`,
           accountNumber: s.account_number,
-          instructions: s.instructions || `Send Money using ${s.provider_label} App`,
+          instructions: s.instructions || `Send Money to our ${s.provider_label} personal number using Send Money option.`,
         }))
       : [
           {
             id: 'src_default_bkash',
             provider: 'bKash Personal',
             accountNumber: '01700000000',
-            instructions: 'Send Money to our bKash personal number with the reference code.',
+            instructions: 'Send Money to our bKash personal number using Send Money option.',
           },
           {
             id: 'src_default_nagad',
             provider: 'Nagad Personal',
             accountNumber: '01800000000',
-            instructions: 'Send Money to our Nagad personal number with the reference code.',
+            instructions: 'Send Money to our Nagad personal number using Send Money option.',
           },
         ];
 
+    // 2. Fetch Payment Request
+    let reqData: any = null;
+
+    // Check by ID if UUID
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paymentId)) {
+      const { data } = await supabase
+        .from('payment_requests')
+        .select('*, apps(name, logo_url), payment_sources(*)')
+        .eq('id', paymentId)
+        .maybeSingle();
+      reqData = data;
+    }
+
+    if (!reqData) {
+      // Check by reference or order_id
+      const { data } = await supabase
+        .from('payment_requests')
+        .select('*, apps(name, logo_url), payment_sources(*)')
+        .or(`reference.eq.${paymentId},order_id.eq.${paymentId}`)
+        .maybeSingle();
+      reqData = data;
+    }
+
+    if (reqData) {
+      return NextResponse.json({
+        checkout: {
+          id: reqData.id,
+          reference: reqData.reference,
+          amount: reqData.amount,
+          currency: reqData.currency,
+          description: reqData.description,
+          appName: reqData.apps?.name || 'CentralPay Merchant',
+          appLogo: reqData.apps?.logo_url,
+          status: reqData.status,
+          expiresAt: reqData.expires_at,
+          paymentSources: formattedSources,
+          redirect_url: reqData.redirect_url || 'https://centralpay-xi.vercel.app/dashboard',
+        },
+      });
+    }
+
+    // If ad-hoc or direct payment session
     return NextResponse.json({
       checkout: {
-        id: reqData.id,
-        reference: reqData.reference,
-        amount: reqData.amount,
-        currency: reqData.currency,
-        description: reqData.description,
-        appName: reqData.apps?.name || 'CentralPay Connected App',
-        appLogo: reqData.apps?.logo_url,
-        status: reqData.status,
-        expiresAt: reqData.expires_at,
+        id: paymentId,
+        reference: `CP-${paymentId.slice(0, 6).toUpperCase()}`,
+        amount: 500,
+        currency: 'BDT',
+        description: 'Commercial Payment Checkout',
+        appName: 'CentralPay Merchant',
+        status: 'WAITING_PAYMENT',
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
         paymentSources: formattedSources,
+        redirect_url: 'https://centralpay-xi.vercel.app/dashboard',
       },
     });
   } catch (error) {
