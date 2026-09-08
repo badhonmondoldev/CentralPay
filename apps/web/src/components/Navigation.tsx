@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   Radio,
   Zap,
+  LogOut,
 } from 'lucide-react';
 
 const desktopNavItems = [
@@ -56,6 +57,14 @@ export function Navigation({ children }: { children: React.ReactNode }) {
 
   // Hide sidebar/nav on hosted checkout pages (/pay/[id]) and login page
   const isCheckoutOrLogin = pathname.startsWith('/pay/') || pathname === '/login';
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/v1/auth/logout', { method: 'POST' });
+    } finally {
+      window.location.href = '/login';
+    }
+  };
 
   if (isCheckoutOrLogin) {
     return <main className="min-h-screen bg-background">{children}</main>;
@@ -99,15 +108,25 @@ export function Navigation({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* System Status Banner */}
-        <div className="mt-auto pt-4 border-t border-card-border">
+        {/* System Status Banner & Logout */}
+        <div className="mt-auto pt-4 border-t border-card-border space-y-2">
           <div className="glass-card p-3 rounded-lg flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-foreground font-medium">System Active</span>
+              <span className="text-foreground font-medium">Admin: Badhon</span>
             </div>
-            <span className="text-[10px] text-muted bg-card-border px-1.5 py-0.5 rounded">Agent Online</span>
+            <span className="text-[10px] text-primary bg-primary/10 border border-primary/30 px-1.5 py-0.5 rounded font-mono">
+              Secure
+            </span>
           </div>
+
+          <button
+            onClick={handleLogout}
+            className="w-full px-3 py-2 rounded-lg bg-card-border/40 hover:bg-red-500/20 text-muted hover:text-red-400 transition-colors text-xs flex items-center justify-center gap-2 font-semibold"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Lock & Log Out</span>
+          </button>
         </div>
       </aside>
 
@@ -124,7 +143,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
 
           <div className="hidden lg:flex items-center gap-2 text-xs text-muted">
             <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-            <span>Multi-App SMS Verification Network</span>
+            <span>Multi-App SMS Verification Network (Private Admin Portal)</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -139,13 +158,21 @@ export function Navigation({ children }: { children: React.ReactNode }) {
               <span className="h-2 w-2 rounded-full bg-accent" />
               <span>LIVE MODE</span>
             </div>
+            <button
+              onClick={handleLogout}
+              className="h-8 px-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 transition-colors text-xs flex items-center gap-1.5 font-semibold"
+              title="Log Out of Admin"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
           </div>
         </header>
 
         {/* Page Content */}
         <main className="flex-1 p-4 lg:p-8 pb-20 lg:pb-8 max-w-7xl mx-auto w-full">{children}</main>
 
-        {/* Mobile Bottom Navigation Bar (Requirement 5) */}
+        {/* Mobile Bottom Navigation Bar */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#090C12]/95 backdrop-blur-lg border-t border-card-border z-50 flex items-center justify-around px-2">
           {mobileNavItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
