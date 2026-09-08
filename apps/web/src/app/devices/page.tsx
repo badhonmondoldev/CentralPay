@@ -15,31 +15,62 @@ interface DeviceItem {
 }
 
 export default function DevicesPage() {
-  const [devices, setDevices] = useState<DeviceItem[]>([
-    {
-      id: 'dev_pixel7_01',
-      device_name: 'Android Agent Primary (Pixel 7)',
-      status: 'ONLINE',
-      battery_level: 92,
-      network_status: 'WiFi / Mobile Data',
-      last_heartbeat: 'Just now',
-      app_version: 'v1.0.0',
-      pending_queue_count: 0,
-    },
-  ]);
-
+  const [devices, setDevices] = useState<DeviceItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showPairModal, setShowPairModal] = useState(false);
   const appDownloadUrl = 'https://centralpay-xi.vercel.app/centralpay-agent.apk';
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(appDownloadUrl)}`;
+
+  const loadDevices = async () => {
+    try {
+      const res = await fetch('/api/v1/devices');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.devices && data.devices.length > 0) {
+          setDevices(data.devices);
+        } else {
+          setDevices([
+            {
+              id: 'waiting_for_first_device',
+              device_name: 'No devices connected yet',
+              status: 'OFFLINE',
+              battery_level: 0,
+              network_status: 'Waiting for APK installation',
+              last_heartbeat: 'Install centralpay-agent.apk to pair',
+              app_version: 'v1.0.0',
+              pending_queue_count: 0,
+            },
+          ]);
+        }
+      }
+    } catch {
+      // Keep existing state on error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDevices();
+    const interval = setInterval(loadDevices, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-foreground tracking-tight">Android Payment Devices</h1>
-          <p className="text-xs text-muted">Pair and manage Android CentralPay Agent devices to capture payment SMS messages.</p>
+          <p className="text-xs text-muted">Pair and manage Android CentralPay Agent devices to capture real payment SMS messages.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={loadDevices}
+            className="p-2 rounded-xl bg-card border border-card-border text-muted hover:text-foreground"
+            title="Refresh Devices"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
           <a
             href="/centralpay-agent.apk"
             download
@@ -72,7 +103,13 @@ export default function DevicesPage() {
                   <p className="text-xs text-muted font-mono">{dev.id}</p>
                 </div>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/40 font-semibold text-[10px]">
+              <span
+                className={`px-2.5 py-0.5 rounded-full font-semibold text-[10px] border ${
+                  dev.status === 'ONLINE'
+                    ? 'bg-primary/20 text-primary border-primary/40'
+                    : 'bg-muted/20 text-muted border-card-border'
+                }`}
+              >
                 {dev.status}
               </span>
             </div>
@@ -91,10 +128,11 @@ export default function DevicesPage() {
 
             <div className="pt-3 border-t border-card-border flex items-center justify-between text-xs">
               <span className="text-[10px] text-muted">Last Heartbeat: {dev.last_heartbeat || 'Active'}</span>
-              <button className="text-red-400 font-semibold hover:underline flex items-center gap-1 text-[11px]">
-                <XCircle className="h-3.5 w-3.5" />
-                <span>Revoke Device</span>
-              </button>
+              {dev.status === 'ONLINE' && (
+                <span className="text-[10px] text-primary font-bold flex items-center gap-1">
+                  ● Live Syncing
+                </span>
+              )}
             </div>
           </div>
         ))}

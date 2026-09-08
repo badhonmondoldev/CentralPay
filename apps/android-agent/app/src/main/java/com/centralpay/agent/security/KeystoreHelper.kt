@@ -17,14 +17,14 @@ object KeystoreHelper {
         return try {
             val prefs = getPrefs(context)
             var id = prefs.getString(KEY_DEVICE_ID, null)
-            if (id == null) {
-                id = "dev_agent_${UUID.randomUUID().toString().replace("-", "").substring(0, 12)}"
+            if (id == null || !id.contains("-") || id.length != 36) {
+                id = UUID.randomUUID().toString()
                 prefs.edit().putString(KEY_DEVICE_ID, id).apply()
             }
             id
         } catch (e: Exception) {
             Log.e("KeystoreHelper", "Error getting device ID: ${e.message}")
-            "dev_agent_fallback_99"
+            "00000000-0000-0000-0000-000000000001"
         }
     }
 
