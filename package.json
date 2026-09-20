@@ -7,9 +7,9 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspace=@centralpay/types && npm run build --workspace=@centralpay/shared && npm run build --workspace=@centralpay/sdk && npm run build --workspace=@centralpay/web",
     "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspace=@centralpay/types && npm run typecheck --workspace=@centralpay/shared && npm run typecheck --workspace=@centralpay/sdk && npm run typecheck --workspace=@centralpay/web",
     "test": "npm run test --workspaces --if-present"
   },
   "devDependencies": {

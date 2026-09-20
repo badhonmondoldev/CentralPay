@@ -81,4 +81,42 @@ describe('CentralPay Shared Library Tests', () => {
     const isValid = verifyWebhookSignature(payload, sig, secret, timestamp, eventId);
     expect(isValid).toBe(true);
   });
+
+  test('PaymentStateMachine enforces legal and illegal transitions', () => {
+    const { PaymentStateMachine } = require('../state-machine');
+
+    // Legal transitions
+    expect(PaymentStateMachine.canTransition('WAITING_PAYMENT', 'VERIFYING').allowed).toBe(true);
+    expect(PaymentStateMachine.canTransition('VERIFYING', 'COMPLETED').allowed).toBe(true);
+
+    // Illegal transitions: Completed cannot return to waiting payment or pending
+    expect(PaymentStateMachine.canTransition('COMPLETED', 'WAITING_PAYMENT').allowed).toBe(false);
+    expect(PaymentStateMachine.canTransition('COMPLETED', 'PENDING').allowed).toBe(false);
+
+    // Expired is terminal and cannot transition to completed
+    expect(PaymentStateMachine.canTransition('EXPIRED', 'COMPLETED').allowed).toBe(false);
+
+    // Check isPayable
+    const futureDate = new Date(Date.now() + 60000).toISOString();
+    const pastDate = new Date(Date.now() - 60000).toISOString();
+    expect(PaymentStateMachine.isPayable('WAITING_PAYMENT', futureDate)).toBe(true);
+    expect(PaymentStateMachine.isPayable('WAITING_PAYMENT', pastDate)).toBe(false);
+    expect(PaymentStateMachine.isPayable('COMPLETED', futureDate)).toBe(false);
+  });
+
+  test('validateRedirectUrl prevents open redirect vulnerabilities', () => {
+    const { validateRedirectUrl } = require('../validation');
+
+    const allowed = ['earnspace.com', 'nabrijan.com'];
+
+    // Legitimate domains
+    expect(validateRedirectUrl('https://earnspace.com/success', allowed)).toBe(true);
+    expect(validateRedirectUrl('https://sub.earnspace.com/payment/callback', allowed)).toBe(true);
+    expect(validateRedirectUrl('http://localhost:3000/callback', allowed)).toBe(true);
+
+    // Malicious open redirect attempts
+    expect(validateRedirectUrl('https://phishing-site.com/steal', allowed)).toBe(false);
+    expect(validateRedirectUrl('javascript:alert(1)', allowed)).toBe(false);
+    expect(validateRedirectUrl('data:text/html,<script>', allowed)).toBe(false);
+  });
 });

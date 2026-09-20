@@ -1,28 +1,45 @@
 import { NextResponse } from 'next/server';
 import { getAdminSupabase } from '@/lib/supabase';
-import { generatePaymentReference } from '@centralpay/shared';
+import { generatePaymentReference, validateRedirectUrl } from '@centralpay/shared';
+import { checkRateLimit } from '@/lib/rate-limiter';
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const amount = parseFloat(searchParams.get('amount') || '500');
-    const order_id = searchParams.get('order_id') || `ORD_${Date.now().toString().slice(-6)}`;
-    const description = searchParams.get('title') || searchParams.get('desc') || `Payment for Order #${order_id}`;
-    const customer_id = searchParams.get('customer_id') || searchParams.get('phone') || 'GUEST';
-    const redirect_url = searchParams.get('redirect_url') || searchParams.get('callback_url') || null;
-    const app_name = searchParams.get('app_name') || 'CentralPay Merchant';
-
-    if (isNaN(amount) || amount <= 0) {
-      return new NextResponse('Invalid payment amount. Must be greater than 0.', { status: 400 });
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+    const rateCheck = checkRateLimit(`pay_create:${ip}`, 60, 60000);
+    if (!rateCheck.allowed) {
+      return new NextResponse('Too many requests. Please wait a minute before creating new payment sessions.', { status: 429 });
     }
+
+    const { searchParams } = new URL(request.url);
+    const rawAmount = searchParams.get('amount') || '500';
+    const amount = parseFloat(rawAmount);
+
+    if (isNaN(amount) || amount <= 0 || amount > 1000000) {
+      return new NextResponse('Invalid payment amount. Must be between ৳1 and ৳1,000,000.', { status: 400 });
+    }
+
+    const order_id = (searchParams.get('order_id') || `ORD_${Date.now().toString().slice(-6)}`).slice(0, 100);
+    const description = (searchParams.get('title') || searchParams.get('desc') || `Payment for Order #${order_id}`).slice(0, 255);
+    const customer_id = (searchParams.get('customer_id') || searchParams.get('phone') || 'GUEST').slice(0, 100);
+    const redirect_url = searchParams.get('redirect_url') || searchParams.get('callback_url') || null;
+    const app_name = (searchParams.get('app_name') || 'CentralPay Merchant').slice(0, 100);
 
     const supabase = getAdminSupabase();
 
     // Check or create default app
     let appId: string;
-    const { data: defaultApp } = await supabase.from('apps').select('id, slug').limit(1).maybeSingle();
+    let allowedDomains: string[] = [];
+
+    const { data: defaultApp } = await supabase
+      .from('apps')
+      .select('id, slug, allowed_redirect_domains')
+      .limit(1)
+      .maybeSingle();
+
     if (defaultApp) {
       appId = defaultApp.id;
+      allowedDomains = defaultApp.allowed_redirect_domains || [];
     } else {
       const { data: newApp } = await supabase
         .from('apps')
@@ -37,9 +54,14 @@ export async function GET(request: Request) {
       appId = newApp?.id || '00000000-0000-0000-0000-000000000001';
     }
 
+    // Open-redirect safety verification
+    if (redirect_url && !validateRedirectUrl(redirect_url, allowedDomains)) {
+      return new NextResponse('Invalid redirect URL. Destination domain is not authorized.', { status: 400 });
+    }
+
     const reference = generatePaymentReference(app_name.slice(0, 3).toUpperCase());
 
-    // Create real payment request in Supabase
+    // Create real authoritative payment request in Supabase
     const { data: paymentReq, error: reqErr } = await supabase
       .from('payment_requests')
       .insert({
@@ -58,10 +80,10 @@ export async function GET(request: Request) {
       .single();
 
     if (reqErr || !paymentReq) {
-      return new NextResponse(`Database error creating payment: ${reqErr?.message}`, { status: 500 });
+      return new NextResponse(`Database error creating payment session: ${reqErr?.message}`, { status: 500 });
     }
 
-    // Also initialize corresponding payments record
+    // Initialize corresponding payments record
     await supabase.from('payments').insert({
       payment_request_id: paymentReq.id,
       app_id: appId,
@@ -74,7 +96,7 @@ export async function GET(request: Request) {
       auto_approved: false,
     });
 
-    // 302 Redirect buyer directly to the hosted payment checkout screen
+    // 307 Redirect buyer directly to the hosted payment checkout screen
     const checkoutUrl = new URL(`/pay/${paymentReq.id}`, request.url);
     return NextResponse.redirect(checkoutUrl);
   } catch (error) {

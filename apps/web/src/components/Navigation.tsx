@@ -39,6 +39,7 @@ const desktopNavItems = [
   { name: 'Risk & Security', href: '/risk', icon: ShieldAlert },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Developer', href: '/developer', icon: Code2 },
+  { name: 'API Docs', href: '/docs', icon: BookOpen },
   { name: 'API Keys', href: '/api-keys', icon: Key },
   { name: 'Logs', href: '/logs', icon: FileText },
   { name: 'Settings', href: '/settings', icon: Settings },

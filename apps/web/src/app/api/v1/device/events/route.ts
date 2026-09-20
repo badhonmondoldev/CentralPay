@@ -84,6 +84,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'INVALID_REQUEST', message: 'Missing SMS sender or message body' }, { status: 400 });
     }
 
+    // Timestamp freshness check: must be within 5 minutes
+    if (timestampStr) {
+      const ts = parseInt(timestampStr, 10);
+      const fiveMinutesMs = 5 * 60 * 1000;
+      if (!isNaN(ts) && Math.abs(Date.now() - ts) > fiveMinutesMs) {
+        return NextResponse.json(
+          { error: 'EXPIRED_REQUEST', message: 'Request timestamp is outside the allowed 5-minute window.' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Replay attack check: verify nonce uniqueness
     if (nonce && device) {
       const { data: existingNonce } = await supabase

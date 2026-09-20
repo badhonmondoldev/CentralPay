@@ -5,7 +5,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   try {
     const sourceId = params.id;
     const body = await request.json();
-    const { name, provider_label, account_number, account_type, priority, is_active, instructions } = body;
+    const { name, provider_label, account_number, account_type, priority, is_active, instructions, daily_limit, per_tx_limit } = body;
 
     const supabase = getAdminSupabase();
     const updateData: Record<string, any> = { updated_at: new Date().toISOString() };
@@ -17,6 +17,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     if (priority !== undefined) updateData.priority = priority;
     if (is_active !== undefined) updateData.is_active = is_active;
     if (instructions !== undefined) updateData.instructions = instructions;
+    if (daily_limit !== undefined) updateData.daily_limit = parseFloat(daily_limit);
+    if (per_tx_limit !== undefined) updateData.per_tx_limit = parseFloat(per_tx_limit);
 
     const { data: updatedSource, error } = await supabase
       .from('payment_sources')

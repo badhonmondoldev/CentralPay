@@ -289,10 +289,24 @@ export default function CommercialHostedCheckoutPage() {
         {step < 4 && (
           <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-card border border-card-border text-xs">
             <div className="flex items-center gap-2 text-muted">
-              <Clock className="h-3.5 w-3.5 text-accent" />
-              <span>Session Expires In:</span>
+              <Clock className={`h-3.5 w-3.5 ${checkoutData.status === 'EXPIRED' || timeLeft <= 0 ? 'text-red-400' : 'text-accent'}`} />
+              <span>{checkoutData.status === 'EXPIRED' || timeLeft <= 0 ? 'Session Expired:' : 'Session Expires In:'}</span>
             </div>
-            <span className="font-mono font-bold text-accent">{formatTimer(timeLeft)}</span>
+            <span className={`font-mono font-bold ${checkoutData.status === 'EXPIRED' || timeLeft <= 0 ? 'text-red-400' : 'text-accent'}`}>
+              {checkoutData.status === 'EXPIRED' || timeLeft <= 0 ? '00:00 (EXPIRED)' : formatTimer(timeLeft)}
+            </span>
+          </div>
+        )}
+
+        {(checkoutData.status === 'EXPIRED' || timeLeft <= 0) && (
+          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-400 space-y-1">
+            <div className="flex items-center gap-2 font-bold">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>পেমেন্ট সেশনের সময়সীমা শেষ হয়ে গেছে (Expired)</span>
+            </div>
+            <p className="text-[11px] text-red-300/80 pl-6">
+              নিরাপত্তার স্বার্থে এই পেমেন্ট রিকুয়েস্টটি বন্ধ করা হয়েছে। অনুগ্রহ করে মূল ওয়েবসাইট থেকে আবার নতুন পেমেন্ট তৈরি করুন।
+            </p>
           </div>
         )}
 
@@ -325,9 +339,10 @@ export default function CommercialHostedCheckoutPage() {
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-primary text-background font-extrabold text-xs hover:bg-primary-hover transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(85,181,16,0.3)]"
+              disabled={checkoutData.status === 'EXPIRED' || timeLeft <= 0}
+              className="w-full py-3 rounded-xl bg-primary text-background font-extrabold text-xs hover:bg-primary-hover transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(85,181,16,0.3)] disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <span>পেমেন্ট নম্বরসমূহ দেখুন</span>
+              <span>{checkoutData.status === 'EXPIRED' || timeLeft <= 0 ? 'সেশনের মেয়াদ শেষ' : 'পেমেন্ট নম্বরসমূহ দেখুন'}</span>
               <ArrowRight className="h-4 w-4" />
             </button>
           </form>
@@ -453,13 +468,18 @@ export default function CommercialHostedCheckoutPage() {
 
             <button
               type="submit"
-              disabled={isVerifying}
-              className="w-full py-3 rounded-xl bg-accent text-background font-extrabold text-xs hover:bg-accent-hover transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,217,255,0.3)] disabled:opacity-50"
+              disabled={isVerifying || checkoutData.status === 'EXPIRED' || timeLeft <= 0}
+              className="w-full py-3 rounded-xl bg-accent text-background font-extrabold text-xs hover:bg-accent-hover transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,217,255,0.3)] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isVerifying ? (
                 <>
                   <RefreshCw className="h-4 w-4 animate-spin" />
                   <span>অটো ভেরিফাই করা হচ্ছে...</span>
+                </>
+              ) : checkoutData.status === 'EXPIRED' || timeLeft <= 0 ? (
+                <>
+                  <span>সেশনের মেয়াদ শেষ হয়েছে</span>
+                  <AlertCircle className="h-4 w-4" />
                 </>
               ) : (
                 <>

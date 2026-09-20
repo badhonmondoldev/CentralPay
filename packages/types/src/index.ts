@@ -2,18 +2,25 @@ export type AppStatus = 'ACTIVE' | 'DISABLED' | 'SUSPENDED';
 export type AppEnvironment = 'LIVE' | 'TEST';
 export type ApiKeyEnvironment = 'LIVE' | 'TEST';
 
+export type AdminRole = 'SUPER_ADMIN' | 'FINANCE_MANAGER' | 'SUPPORT_AGENT' | 'DEVELOPER' | 'VIEWER';
+
 export type PaymentStatus =
   | 'CREATED'
   | 'WAITING_PAYMENT'
+  | 'PENDING'
+  | 'SUBMITTED'
   | 'SMS_DETECTED'
   | 'MATCHING'
   | 'VERIFICATION_PENDING'
+  | 'VERIFYING'
   | 'VERIFIED'
+  | 'PAID'
   | 'COMPLETED'
   | 'REVIEW_REQUIRED'
   | 'REJECTED'
   | 'EXPIRED'
   | 'FAILED'
+  | 'CANCELLED'
   | 'REVERSED'
   | 'REFUNDED';
 
@@ -21,17 +28,45 @@ export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 
 export type DeviceStatus = 'ONLINE' | 'OFFLINE' | 'REVOKED' | 'PENDING_PAIRING';
 
+export type RefundStatus = 'REQUESTED' | 'APPROVED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'REJECTED';
+
 export type WebhookEventType =
   | 'payment.created'
+  | 'payment.pending'
   | 'payment.detected'
   | 'payment.verifying'
+  | 'payment.paid'
   | 'payment.completed'
   | 'payment.failed'
   | 'payment.expired'
+  | 'payment.cancelled'
   | 'payment.review_required'
   | 'payment.refunded';
 
 export type WebhookDeliveryStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'RETRYING';
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  role: AdminRole;
+  two_factor_enabled: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminSession {
+  id: string;
+  admin_id: string;
+  session_token_hash: string;
+  ip_address?: string;
+  user_agent?: string;
+  expires_at: string;
+  last_active_at: string;
+  is_revoked: boolean;
+  created_at: string;
+}
 
 export interface Application {
   id: string;
@@ -44,6 +79,7 @@ export interface Application {
   environment: AppEnvironment;
   webhook_url?: string;
   webhook_secret?: string;
+  allowed_redirect_domains?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -72,6 +108,10 @@ export interface PaymentSource {
   instructions?: string;
   priority: number;
   is_active: boolean;
+  daily_limit?: number;
+  per_tx_limit?: number;
+  today_received_amount?: number;
+  last_reset_date?: string;
   device_id?: string;
   created_at: string;
   updated_at: string;
@@ -93,8 +133,8 @@ export interface Device {
 }
 
 export interface PaymentRequestCreateInput {
-  app_id: string;
-  customer_id: string;
+  app_id?: string;
+  customer_id?: string;
   order_id: string;
   amount: number;
   currency?: string;
@@ -106,7 +146,7 @@ export interface PaymentRequestCreateInput {
 
 export interface PaymentRequest {
   id: string;
-  payment_id: string;
+  payment_id?: string;
   app_id: string;
   customer_id: string;
   order_id: string;
@@ -118,6 +158,7 @@ export interface PaymentRequest {
   status: PaymentStatus;
   expires_at: string;
   redirect_url?: string;
+  idempotency_key?: string;
   created_at: string;
   updated_at: string;
 }
@@ -186,6 +227,31 @@ export interface TransactionMatch {
   reviewed_by?: string;
   reviewed_at?: string;
   created_at: string;
+}
+
+export interface IdempotencyRecord {
+  id: string;
+  idempotency_key: string;
+  app_id?: string;
+  request_hash: string;
+  response_status: number;
+  response_body: Record<string, unknown>;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface Refund {
+  id: string;
+  payment_id: string;
+  app_id: string;
+  amount: number;
+  currency: string;
+  reason: string;
+  status: RefundStatus;
+  approved_by?: string;
+  refunded_at?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface WebhookEventItem {
