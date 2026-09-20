@@ -28,6 +28,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/v1/device/') ||
     pathname.startsWith('/api/v1/download/') ||
     pathname.startsWith('/api/v1/auth/') ||
+    pathname.startsWith('/api/v1/refunds') ||
     pathname === '/health' ||
     pathname === '/api/health' ||
     pathname === '/docs' ||
